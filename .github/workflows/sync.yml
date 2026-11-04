@@ -1,0 +1,35 @@
+name: Daily Schedule Sync
+
+on:
+  schedule:
+    # 17:00 UTC = 19:00 Israel Standard Time
+    - cron: '0 17 * * *'
+    # 04:00 UTC = 06:00/07:00 Israel Time (morning refresh)
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch schedule and generate ICS
+        run: |
+          python3 handasaim_sync.py --week --export-ics schedule.ics --only-ics
+
+      - name: Commit and push updated schedule
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add schedule.ics
+          git diff --staged --quiet || (git commit -m "Automated schedule update [$(date -u +'%Y-%m-%d %H:%M')]" && git push)
